@@ -5,12 +5,21 @@ const { Pool, types } = require("pg");
 // which shifts the date backwards in timezones ahead of UTC.
 types.setTypeParser(1082, (val) => val);
 
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
+const pool = process.env.SUPABASE_DB_HOST
+  ? new Pool({
+      host: process.env.SUPABASE_DB_HOST,
+      port: 5432,
+      database: "postgres",
+      user: "postgres",
+      password: process.env.SUPABASE_DB_PASSWORD,
+      ssl: { rejectUnauthorized: false },
+    })
+  : new Pool({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+    });
 
 module.exports = pool;
