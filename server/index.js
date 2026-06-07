@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
+const auth = require("./middleware/auth");
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -12,20 +13,12 @@ app.use(express.json());
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const tasksRouter = require("./routes/tasks");
-app.use("/api/tasks", tasksRouter);
+app.use("/api/tasks", auth, tasksRouter);
 
 const schedulesRouter = require("./routes/schedules");
-app.use("/api/schedules", schedulesRouter);
+app.use("/api/schedules", auth, schedulesRouter);
 
-// POST /api/breakdown
-// Body: {
-//   fixedTasks: [{title, start_time, end_time, notes}],
-//   flexibleTasks: [{title, notes}],
-//   mood: string,
-//   dayStart: string (e.g. "08:00"),
-//   dayEnd: string (e.g. "22:00")
-// }
-app.post("/api/breakdown", async (req, res) => {
+app.post("/api/breakdown", auth, async (req, res) => {
   const { fixedTasks = [], flexibleTasks = [], mood, moodNote, requests, dayStart = "08:00", dayEnd = "22:00" } = req.body;
 
   if (fixedTasks.length === 0 && flexibleTasks.length === 0) {
@@ -86,12 +79,9 @@ Only return valid JSON. No extra text.
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
     });
-
     const raw = response.choices[0].message.content.trim();
     const json = raw.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-    const schedule = JSON.parse(json);
-
-    res.json({ schedule });
+    res.json({ schedule: JSON.parse(json) });
   } catch (err) {
     console.error("OpenAI error:", err.message);
     res.status(500).json({ error: "Failed to build the schedule. Check your API key." });

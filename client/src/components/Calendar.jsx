@@ -141,7 +141,7 @@ function Calendar({ tasks, monthSchedules, onMonthChange, onViewDate, onPlanDate
                     <span className="cal-dot fixed" title={`${fixed.length} fixed task${fixed.length > 1 ? "s" : ""}`} />
                   )}
                   {schedules.length > 0 && (
-                    <span className="cal-dot schedule" title={`${schedules.length} schedule${schedules.length > 1 ? "s" : ""}`} />
+                    <span className="cal-dot cal-schedule" title={`${schedules.length} schedule${schedules.length > 1 ? "s" : ""}`} />
                   )}
                 </div>
               </div>
@@ -152,8 +152,8 @@ function Calendar({ tasks, monthSchedules, onMonthChange, onViewDate, onPlanDate
 
       {/* Legend */}
       <div className="cal-legend">
-        <span className="cal-legend-item"><span className="cal-dot fixed" /> Fixed task</span>
-        <span className="cal-legend-item"><span className="cal-dot schedule" /> Saved schedule</span>
+        <div className="cal-legend-item"><span className="cal-dot fixed" /> Fixed task</div>
+        <div className="cal-legend-item"><span className="cal-dot cal-schedule" /> Saved schedule</div>
       </div>
 
       {/* Selected day detail */}

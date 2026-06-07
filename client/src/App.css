@@ -1282,11 +1282,10 @@
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: 32px;
+  grid-template-columns: repeat(7, 52px);
   grid-auto-rows: 52px;
   gap: 4px;
-  margin-bottom: 12px;
+  justify-content: center;
 }
 
 /* day-of-week headers rendered as first row inside the same grid */
@@ -1376,21 +1375,22 @@
   flex-direction: row;
   gap: 3px;
   align-items: center;
-  height: 6px;
 }
 
 .cal-dot {
+  display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .cal-dot.fixed {
   background: #6c63ff;
 }
 
-.cal-dot.schedule {
+.cal-dot.cal-schedule {
   background: #10b981;
 }
 
@@ -1398,7 +1398,7 @@
   background: rgba(255,255,255,0.8);
 }
 
-.cal-cell.selected .cal-dot.schedule {
+.cal-cell.selected .cal-dot.cal-schedule {
   background: #a7f3d0;
 }
 
@@ -1627,4 +1627,146 @@
   .suggestion-item .task-item-actions {
     margin-top: 2px;
   }
+}
+
+/* ── Auth page ── */
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: #aaa;
+  font-size: 1rem;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f7fb;
+  padding: 24px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px 32px 32px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 4px 32px rgba(108, 99, 255, 0.10);
+}
+
+.auth-logo {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #6c63ff;
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.auth-tagline {
+  text-align: center;
+  color: #999;
+  font-size: 0.9rem;
+  margin: 0 0 28px;
+}
+
+.auth-tabs {
+  display: flex;
+  border-radius: 10px;
+  background: #f3f2ff;
+  padding: 4px;
+  margin-bottom: 24px;
+  gap: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #aaa;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.auth-tab.active {
+  background: white;
+  color: #6c63ff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-input {
+  padding: 12px 14px;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.auth-input:focus {
+  border-color: #6c63ff;
+}
+
+.auth-submit {
+  margin-top: 4px;
+  padding: 13px;
+  background: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: #5a52e0;
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.auth-message {
+  color: #10b981;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Sign-out button in header */
+.signout-btn {
+  background: none;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #aaa;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.signout-btn:hover {
+  border-color: #6c63ff;
+  color: #6c63ff;
 }

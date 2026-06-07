@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { supabase } from "./lib/supabase";
 import TaskList from "./components/TaskList";
 import TaskForm from "./components/TaskForm";
 import Schedule from "./components/Schedule";
@@ -7,11 +8,13 @@ import SavedSchedules from "./components/SavedSchedules";
 import EditTaskPanel from "./components/EditTaskPanel";
 import Calendar from "./components/Calendar";
 import NavBar from "./components/NavBar";
+import AuthPage from "./components/AuthPage";
 import "./App.css";
 
-const API = "http://localhost:3001/api";
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 function App() {
+  const [session, setSession] = useState(undefined); // undefined = loading, null = logged out
   const [activeTab, setActiveTab] = useState("tasks");
   const [tasks, setTasks] = useState([]);
   const [todayFixed, setTodayFixed] = useState([]);
@@ -32,7 +35,30 @@ function App() {
   const [adjusting, setAdjusting] = useState(false);
   const [monthSchedules, setMonthSchedules] = useState([]);
 
+  // Listen for auth state changes
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Attach Bearer token to every axios request
+  useEffect(() => {
+    if (!session) return;
+    const interceptor = axios.interceptors.request.use((config) => {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+      return config;
+    });
+    return () => axios.interceptors.request.eject(interceptor);
+  }, [session]);
+
+  // Load initial data once logged in
+  useEffect(() => {
+    if (!session) return;
     axios.get(`${API}/tasks`).then((res) => setTasks(res.data));
     axios.get(`${API}/tasks/today`).then((res) => setTodayFixed(res.data));
     const d = new Date();
@@ -40,7 +66,7 @@ function App() {
     const tomorrow = d.toISOString().split("T")[0];
     axios.get(`${API}/tasks/for-date?date=${tomorrow}`).then((res) => setPlanFixed(res.data));
     axios.get(`${API}/schedules/for-date?date=${tomorrow}`).then((res) => setSavedSchedules(res.data));
-  }, []);
+  }, [session]);
 
   async function addTask(taskData) {
     const res = await axios.post(`${API}/tasks`, taskData);
@@ -131,24 +157,17 @@ function App() {
     setLoading(true);
     setError("");
     setSchedule([]);
-
     try {
       const res = await axios.post(`${API}/breakdown`, {
         fixedTasks: planFixed.map((t) => ({
-          title: t.title,
-          notes: t.notes,
-          start_time: t.start_time,
-          end_time: t.end_time,
+          title: t.title, notes: t.notes,
+          start_time: t.start_time, end_time: t.end_time,
         })),
         flexibleTasks: planFlexible.map((t) => ({ title: t.title, notes: t.notes })),
-        mood,
-        moodNote,
-        requests,
-        dayStart,
-        dayEnd,
+        mood, moodNote, requests, dayStart, dayEnd,
       });
       setSchedule(res.data.schedule);
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Is the server running?");
     } finally {
       setLoading(false);
@@ -159,9 +178,7 @@ function App() {
     setSaving(true);
     try {
       const res = await axios.post(`${API}/schedules`, {
-        date: planDate,
-        mood: currentMood,
-        blocks: schedule,
+        date: planDate, mood: currentMood, blocks: schedule,
       });
       setSavedSchedules((prev) => [res.data, ...prev]);
       setSchedule([]);
@@ -202,13 +219,12 @@ function App() {
     setAdjusting(true);
     try {
       const res = await axios.post(`${API}/schedules/${scheduleId}/adjust`, {
-        instruction,
-        blocks: currentBlocks,
+        instruction, blocks: currentBlocks,
       });
       setSavedSchedules((prev) =>
         prev.map((s) => (s.id === scheduleId ? { ...s, blocks: res.data.blocks } : s))
       );
-    } catch (err) {
+    } catch {
       alert("Failed to adjust schedule. Try again.");
     } finally {
       setAdjusting(false);
@@ -219,11 +235,10 @@ function App() {
     setAdjusting(true);
     try {
       const res = await axios.post(`${API}/schedules/adjust`, {
-        instruction,
-        blocks: schedule,
+        instruction, blocks: schedule,
       });
       setSchedule(res.data.blocks);
-    } catch (err) {
+    } catch {
       alert("Failed to adjust schedule. Try again.");
     } finally {
       setAdjusting(false);
@@ -241,13 +256,25 @@ function App() {
     : [];
 
   const doneTasks = tasks.filter((t) => t.status === "done" && !t.parent_id);
-
   const inPlanningMode = planFlexible.length > 0 || schedule.length > 0;
+
+  // Still determining auth state
+  if (session === undefined) {
+    return <div className="auth-loading">Loading…</div>;
+  }
+
+  // Not logged in
+  if (!session) {
+    return <AuthPage />;
+  }
 
   return (
     <div className="app">
       <div className="app-header">
         <h1>ADHme</h1>
+        <button className="signout-btn" onClick={() => supabase.auth.signOut()}>
+          Sign out
+        </button>
       </div>
 
       {activeTab === "tasks" && (
@@ -328,7 +355,6 @@ function App() {
             )}
           </div>
 
-          {/* Mood form — shown when tasks are queued and no schedule generated yet */}
           {planFlexible.length > 0 && schedule.length === 0 && (
             <>
               <TaskForm onSubmit={handleSubmit} loading={loading} />
@@ -336,7 +362,6 @@ function App() {
             </>
           )}
 
-          {/* Generated but unsaved schedule */}
           {schedule.length > 0 && (
             <>
               <div className="schedule-actions">
@@ -355,7 +380,6 @@ function App() {
             </>
           )}
 
-          {/* Build new schedule button — shown when not in planning mode */}
           {!inPlanningMode && (
             <div className="saved-header-actions">
               <button className="plan-day-btn" onClick={() => setActiveTab("tasks")}>
@@ -364,7 +388,6 @@ function App() {
             </div>
           )}
 
-          {/* Saved schedules */}
           {savedSchedules.length > 0 && schedule.length === 0 && (
             <SavedSchedules
               schedules={savedSchedules}
@@ -375,7 +398,6 @@ function App() {
             />
           )}
 
-          {/* Empty state */}
           {!inPlanningMode && savedSchedules.length === 0 && (
             <p className="empty-state">No schedule for this date yet.</p>
           )}

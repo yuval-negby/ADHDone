@@ -8,7 +8,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 router.get("/today", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM schedules WHERE date = CURRENT_DATE ORDER BY created_at DESC"
+      "SELECT * FROM schedules WHERE date = CURRENT_DATE AND user_id = $1 ORDER BY created_at DESC",
+      [req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -22,15 +23,17 @@ router.get("/month", async (req, res) => {
   const { year, month } = req.query;
   if (!year || !month) return res.status(400).json({ error: "year and month are required." });
   const y = parseInt(year);
-  const m = parseInt(month); // 1-indexed
+  const m = parseInt(month);
   const start = `${y}-${String(m).padStart(2, "0")}-01`;
   const endY = m === 12 ? y + 1 : y;
   const endM = m === 12 ? 1 : m + 1;
   const end = `${endY}-${String(endM).padStart(2, "0")}-01`;
   try {
     const result = await pool.query(
-      "SELECT * FROM schedules WHERE date >= $1 AND date < $2 ORDER BY date ASC, created_at DESC",
-      [start, end]
+      `SELECT * FROM schedules
+       WHERE date >= $1 AND date < $2 AND user_id = $3
+       ORDER BY date ASC, created_at DESC`,
+      [start, end, req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -45,8 +48,8 @@ router.get("/for-date", async (req, res) => {
   if (!date) return res.status(400).json({ error: "date query param is required." });
   try {
     const result = await pool.query(
-      "SELECT * FROM schedules WHERE date = $1 ORDER BY created_at DESC",
-      [date]
+      "SELECT * FROM schedules WHERE date = $1 AND user_id = $2 ORDER BY created_at DESC",
+      [date, req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -55,7 +58,7 @@ router.get("/for-date", async (req, res) => {
   }
 });
 
-// POST /api/schedules — save a new schedule
+// POST /api/schedules
 router.post("/", async (req, res) => {
   const { mood, blocks, date } = req.body;
   if (!blocks || blocks.length === 0) {
@@ -63,8 +66,8 @@ router.post("/", async (req, res) => {
   }
   try {
     const result = await pool.query(
-      "INSERT INTO schedules (date, mood, blocks) VALUES ($1, $2, $3) RETURNING *",
-      [date || null, mood || null, JSON.stringify(blocks)]
+      "INSERT INTO schedules (date, mood, blocks, user_id) VALUES ($1, $2, $3, $4) RETURNING *",
+      [date || null, mood || null, JSON.stringify(blocks), req.user.id]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -73,15 +76,15 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PATCH /api/schedules/:id — update blocks (edits, done marking)
+// PATCH /api/schedules/:id
 router.patch("/:id", async (req, res) => {
   const { id } = req.params;
   const { blocks } = req.body;
   if (!blocks) return res.status(400).json({ error: "Blocks are required." });
   try {
     const result = await pool.query(
-      "UPDATE schedules SET blocks = $1 WHERE id = $2 RETURNING *",
-      [JSON.stringify(blocks), id]
+      "UPDATE schedules SET blocks = $1 WHERE id = $2 AND user_id = $3 RETURNING *",
+      [JSON.stringify(blocks), id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Schedule not found." });
     res.json(result.rows[0]);
@@ -91,7 +94,7 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// POST /api/schedules/adjust — stateless AI adjustment (no DB, for unsaved schedules)
+// POST /api/schedules/adjust — stateless AI adjustment (unsaved schedules)
 router.post("/adjust", async (req, res) => {
   const { instruction, blocks } = req.body;
   if (!instruction || !blocks) {
@@ -133,19 +136,17 @@ Only return valid JSON. No extra text.
     });
     const raw = response.choices[0].message.content.trim();
     const json = raw.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-    const updated = JSON.parse(json);
-    res.json({ blocks: updated });
+    res.json({ blocks: JSON.parse(json) });
   } catch (err) {
     console.error("Adjust error:", err.message);
     res.status(500).json({ error: "Failed to adjust schedule." });
   }
 });
 
-// POST /api/schedules/:id/adjust — AI adjustment of existing schedule
+// POST /api/schedules/:id/adjust
 router.post("/:id/adjust", async (req, res) => {
   const { id } = req.params;
   const { instruction, blocks } = req.body;
-
   if (!instruction || !blocks) {
     return res.status(400).json({ error: "Instruction and blocks are required." });
   }
@@ -183,17 +184,14 @@ Only return valid JSON. No extra text.
       messages: [{ role: "user", content: prompt }],
       temperature: 0.5,
     });
-
     const raw = response.choices[0].message.content.trim();
     const json = raw.replace(/^```json\n?/, "").replace(/\n?```$/, "");
     const updated = JSON.parse(json);
 
-    // Persist to DB
     const result = await pool.query(
-      "UPDATE schedules SET blocks = $1 WHERE id = $2 RETURNING *",
-      [JSON.stringify(updated), id]
+      "UPDATE schedules SET blocks = $1 WHERE id = $2 AND user_id = $3 RETURNING *",
+      [JSON.stringify(updated), id, req.user.id]
     );
-
     res.json({ blocks: updated, saved: result.rows.length > 0 });
   } catch (err) {
     console.error("Adjust error:", err.message);
@@ -206,7 +204,8 @@ router.delete("/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      "DELETE FROM schedules WHERE id = $1 RETURNING *", [id]
+      "DELETE FROM schedules WHERE id = $1 AND user_id = $2 RETURNING *",
+      [id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "Schedule not found." });
     res.json({ message: "Schedule deleted." });
