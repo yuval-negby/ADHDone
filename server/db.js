@@ -8,9 +8,9 @@ types.setTypeParser(1082, (val) => val);
 const pool = process.env.SUPABASE_DB_HOST
   ? new Pool({
       host: process.env.SUPABASE_DB_HOST,
-      port: 5432,
+      port: process.env.SUPABASE_DB_PORT || 5432,
       database: "postgres",
-      user: "postgres",
+      user: process.env.SUPABASE_DB_USER || "postgres",
       password: process.env.SUPABASE_DB_PASSWORD,
       ssl: { rejectUnauthorized: false },
     })
