@@ -271,7 +271,7 @@ function App() {
   return (
     <div className="app">
       <div className="app-header">
-        <h1>ADHme</h1>
+        <h1>ADHDone</h1>
         <button className="signout-btn" onClick={() => supabase.auth.signOut()}>
           Sign out
         </button>
