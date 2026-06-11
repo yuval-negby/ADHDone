@@ -34,7 +34,7 @@ function AuthPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1 className="auth-logo">ADHme</h1>
+        <h1 className="auth-logo">ADHDone</h1>
         <p className="auth-tagline">Your ADHD-friendly day planner</p>
 
         <div className="auth-tabs">
